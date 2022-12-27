@@ -1,28 +1,69 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using SocketIOClient;
 using SocketIOClient.Newtonsoft.Json;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 using Newtonsoft.Json.Linq;
+using Newtonsoft.Json;
+using System.Linq;
 
-using Debug = System.Diagnostics.Debug;
+
+public class Player
+{
+    [JsonProperty("id")]
+    public String id;
+    [JsonProperty("name")]
+    public String name;
+}
 
 public class SocketManager : MonoBehaviour
 {
+    private static SocketManager instance;
+    public static SocketManager Instance { 
+        get {
+            return instance;
+        } 
+    }
+
     public SocketIOUnity socket;
 
+    [Tooltip("The server URL for ScoketIO to make request")]
+    public String serverURL;
+
+    public Canvas mainCanvas;
     public InputField EventNameTxt;
     public InputField DataTxt;
     public Text ReceivedText;  
 
     public GameObject objectToSpin;
 
-    // Start is called before the first frame update
+    private float rotateAngle = 45;
+    private readonly float MaxRotateAngle = 45;
+
+    private List<Player> playerList = new List<Player>();
+    public List<Player> PlayerList
+    {
+        get { return playerList; }
+    }
+
+    private void Awake()
+    {
+        if (instance == null)
+        {
+            instance = this;
+        }
+        else
+        {
+            Destroy(gameObject);
+        }
+    }
+
     void Start()
     {
-        //TODO: check the Uri if Valid.
-        var uri = new Uri("http://localhost:11100");
+        Uri uri = new Uri(serverURL);
         socket = new SocketIOUnity(uri, new SocketIOOptions
         {
             Query = new Dictionary<string, string>
@@ -36,30 +77,28 @@ public class SocketManager : MonoBehaviour
         });
         socket.JsonSerializer = new NewtonsoftJsonSerializer();
 
-        ///// reserved socketio events
         socket.OnConnected += (sender, e) =>
         {
-            Debug.Print("socket.OnConnected");
+            Debug.Log("socket.OnConnected");
         };
         socket.OnPing += (sender, e) =>
         {
-            Debug.Print("Ping");
+            Debug.Log("Ping");
         };
         socket.OnPong += (sender, e) =>
         {
-            Debug.Print("Pong: " + e.TotalMilliseconds);
+            Debug.Log("Pong: " + e.TotalMilliseconds);
         };
         socket.OnDisconnected += (sender, e) =>
         {
-            Debug.Print("disconnect: " + e);
+            Debug.Log("disconnect: " + e);
         };
         socket.OnReconnectAttempt += (sender, e) =>
         {
-            Debug.Print($"{DateTime.Now} Reconnecting: attempt = {e}");
+            Debug.Log($"{DateTime.Now} Reconnecting: attempt = {e}");
         };
-        ////
 
-        Debug.Print("Connecting...");
+        Debug.Log("Connecting...");
         socket.Connect();
 
         socket.OnUnityThread("spin", (data) =>
@@ -67,11 +106,43 @@ public class SocketManager : MonoBehaviour
             rotateAngle = 0;
         });
 
-        ReceivedText.text = "";
-        socket.OnAnyInUnityThread((name, response) =>
+        socket.OnUnityThread("found_match", (data) =>
         {
-            ReceivedText.text += "Received On " + name + " : " + response.ToString() + "\n";
+            StartCoroutine(CollectUsers(data));
         });
+
+        ReceivedText.text = "";
+    }
+
+    private void OnDestroy()
+    {
+        socket.Disconnect();
+    }
+
+    private IEnumerator CollectUsers(SocketIOResponse data)
+    {
+        if (playerList.Count > 5)
+        {
+            Debug.Log("Match has already been found!");
+            yield return null;
+        }
+        else
+        {
+            JObject resJson = JObject.Parse(data.ToString()[1..^1]);
+            IList<JToken> results = resJson["players"].ToList();
+            foreach (JToken result in results)
+            {
+                Player player = result.ToObject<Player>();
+                playerList.Add(player);
+            }
+
+            float matchStartDuration = 5.0f;
+            ReceivedText.text = "Match found! The match will start in " + matchStartDuration + " seconds";
+            yield return new WaitForSeconds(matchStartDuration);
+            SceneManager.LoadScene("RoomScene", LoadSceneMode.Additive);
+            mainCanvas.gameObject.SetActive(false);
+            objectToSpin.SetActive(false);
+        }
     }
 
     public void EmitTest()
@@ -118,21 +189,8 @@ public class SocketManager : MonoBehaviour
 
     public void EmitClass()
     {
-        TestClass testClass = new TestClass(new string[] { "foo", "bar", "baz", "qux" });
         TestClass2 testClass2 = new TestClass2("lorem ipsum");
         socket.Emit("class", testClass2);
-    }
-
-    // our test class
-    [System.Serializable]
-    class TestClass
-    {
-        public string[] arr;
-
-        public TestClass(string[] arr)
-        {
-            this.arr = arr;
-        }
     }
 
     [System.Serializable]
@@ -145,11 +203,7 @@ public class SocketManager : MonoBehaviour
             this.text = text;
         }
     }
-    //
 
-
-    float rotateAngle = 45;
-    readonly float MaxRotateAngle = 45;
     void Update()
     {
         if(rotateAngle < MaxRotateAngle)

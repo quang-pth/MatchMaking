@@ -868,7 +868,7 @@ GameObject:
   m_Component:
   - component: {fileID: 870180694}
   - component: {fileID: 870180693}
-  - component: {fileID: 870180692}
+  - component: {fileID: 870180696}
   - component: {fileID: 870180695}
   m_Layer: 0
   m_Name: Main Camera
@@ -877,14 +877,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!81 &870180692
-AudioListener:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 870180691}
-  m_Enabled: 1
 --- !u!20 &870180693
 Camera:
   m_ObjectHideFlags: 0
@@ -955,10 +947,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a553f5e671b344f84b9142c18ef7c27b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  serverURL: http://localhost:11100
+  mainCanvas: {fileID: 1805898159}
   EventNameTxt: {fileID: 1394009028}
   DataTxt: {fileID: 580004085}
   ReceivedText: {fileID: 1548164912}
   objectToSpin: {fileID: 1905718434}
+--- !u!81 &870180696
+AudioListener:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 870180691}
+  m_Enabled: 1
 --- !u!1 &875229695
 GameObject:
   m_ObjectHideFlags: 0

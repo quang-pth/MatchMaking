@@ -46,25 +46,38 @@ io.on('connection', socket => {
     socket.emit("first event", {date: new Date().getTime(), data: data});
   })
 
-  socket.on('find match', (data) => {
+  socket.on('find_match', (data) => {
     console.log('find match - user data: ', data);
     setTimeout(() => {
-      socket.emit('match found: ', 
-      {
-        date: new Date().getTime(), matchData: {
-        players: [
-          'user1', 
-          'user2',
-          'user3',
-          'user4',
-          'data'
-        ],
-        roomId: randomUUID(),
-      }})
+      socket.emit('found_match',
+        {
+          players: 
+          [
+            {
+            id: randomUUID(),
+            name: 'Yasuo',
+            },
+            {
+              id: randomUUID(),
+              name: 'Leesin',
+            },
+            {
+              id: randomUUID(),
+              name: 'Lucian',
+            },
+            {
+              id: randomUUID(),
+              name: 'Thresh',
+            },
+            {
+              id: randomUUID(),
+              name: data,
+            }
+          ]
+        })
     }, 3000);
   })
 });
-
 
 server.listen(port, () => {
   console.log('listening on *:' + port);
