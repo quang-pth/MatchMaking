@@ -10,56 +10,31 @@ using Newtonsoft.Json.Linq;
 using Newtonsoft.Json;
 using System.Linq;
 
-
 public class Player
 {
-    [JsonProperty("id")]
-    public String id;
-    [JsonProperty("name")]
-    public String name;
+    [JsonProperty("user_id")]
+    public string user_id;
+    [JsonProperty("display_name")]
+    public string display_name;
 }
 
 public class SocketManager : MonoBehaviour
 {
-    private static SocketManager instance;
-    public static SocketManager Instance { 
-        get {
-            return instance;
-        } 
-    }
-
     public SocketIOUnity socket;
 
     [Tooltip("The server URL for ScoketIO to make request")]
-    public String serverURL;
+    public string serverURL;
 
     public Canvas mainCanvas;
-    public InputField EventNameTxt;
     public InputField DataTxt;
     public Text ReceivedText;  
 
-    public GameObject objectToSpin;
-
-    private float rotateAngle = 45;
-    private readonly float MaxRotateAngle = 45;
-
-    private List<Player> playerList = new List<Player>();
-    public List<Player> PlayerList
+    private Dictionary<string, List<Player>> matchTeam = new Dictionary<string, List<Player>>();
+    public Dictionary<string, List<Player>> MatchTeam
     {
-        get { return playerList; }
+        get { return matchTeam; }
     }
 
-    private void Awake()
-    {
-        if (instance == null)
-        {
-            instance = this;
-        }
-        else
-        {
-            Destroy(gameObject);
-        }
-    }
 
     void Start()
     {
@@ -101,14 +76,10 @@ public class SocketManager : MonoBehaviour
         Debug.Log("Connecting...");
         socket.Connect();
 
-        socket.OnUnityThread("spin", (data) =>
-        {
-            rotateAngle = 0;
-        });
-
+        // On response match found event
         socket.OnUnityThread("found_match", (data) =>
         {
-            StartCoroutine(CollectUsers(data));
+            StartCoroutine(StartMatch(data));
         });
 
         ReceivedText.text = "";
@@ -119,36 +90,37 @@ public class SocketManager : MonoBehaviour
         socket.Disconnect();
     }
 
-    private IEnumerator CollectUsers(SocketIOResponse data)
+    private IEnumerator StartMatch(SocketIOResponse data)
     {
-        if (playerList.Count > 5)
+        JObject resJson = JObject.Parse(data.ToString()[1..^1]);
+        var dictTeam = resJson["dict_team"].ToObject<Dictionary<string, JArray>>();
+
+        foreach(KeyValuePair<string, JArray> keyValuePair in dictTeam)
         {
-            Debug.Log("Match has already been found!");
-            yield return null;
-        }
-        else
-        {
-            JObject resJson = JObject.Parse(data.ToString()[1..^1]);
-            IList<JToken> results = resJson["players"].ToList();
-            foreach (JToken result in results)
+            JArray team = keyValuePair.Value;
+            List<Player> playerList = new List<Player>();
+                
+            foreach(var playerObj in team)
             {
-                Player player = result.ToObject<Player>();
+                Player player = playerObj.ToObject<Player>();
                 playerList.Add(player);
             }
 
-            float matchStartDuration = 5.0f;
-            ReceivedText.text = "Match found! The match will start in " + matchStartDuration + " seconds";
-            yield return new WaitForSeconds(matchStartDuration);
-            SceneManager.LoadScene("RoomScene", LoadSceneMode.Additive);
-            mainCanvas.gameObject.SetActive(false);
-            objectToSpin.SetActive(false);
+            this.matchTeam.Add(keyValuePair.Key, playerList);
         }
+
+        float matchStartDuration = 5.0f;
+        ReceivedText.text = "Match found! The match will start in " + matchStartDuration + " seconds";
+        yield return new WaitForSeconds(matchStartDuration);
+        SceneManager.LoadScene("RoomScene", LoadSceneMode.Additive);
+        mainCanvas.gameObject.SetActive(false);
     }
 
-    public void EmitTest()
+    public void FindMatch()
     {
-        string eventName = EventNameTxt.text.Trim().Length < 1 ? "hello" : EventNameTxt.text;
-        string txt = DataTxt.text;
+        string eventName = "find";
+        string txt = "{\"user_id\": \"" + DataTxt.text + "\"}";
+
         if (!IsJSON(txt))
         {
             socket.Emit(eventName, txt);
@@ -157,6 +129,8 @@ public class SocketManager : MonoBehaviour
         {
             socket.EmitStringAsJSON(eventName, txt);
         }
+
+        ReceivedText.text = "Finding Match...";
     }
 
     public static bool IsJSON(string str)
@@ -179,37 +153,6 @@ public class SocketManager : MonoBehaviour
         else
         {
             return false;
-        }
-    }
-
-    public void EmitSpin()
-    {
-        socket.Emit("spin");
-    }
-
-    public void EmitClass()
-    {
-        TestClass2 testClass2 = new TestClass2("lorem ipsum");
-        socket.Emit("class", testClass2);
-    }
-
-    [System.Serializable]
-    class TestClass2
-    {
-        public string text;
-
-        public TestClass2(string text)
-        {
-            this.text = text;
-        }
-    }
-
-    void Update()
-    {
-        if(rotateAngle < MaxRotateAngle)
-        {
-            rotateAngle++;
-            objectToSpin.transform.Rotate(0, 1, 0);
         }
     }
 }

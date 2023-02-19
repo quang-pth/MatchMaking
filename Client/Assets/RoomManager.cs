@@ -19,13 +19,15 @@ public class RoomManager : MonoBehaviour
 
     private void Start()
     {
-        SocketManager socket = SocketManager.Instance;
+        SocketManager socket = GameManager.Instance.socketManager;
         if (socket)
         {
-            for (int i = 0; i < socket.PlayerList.Count; i++)
+            List<Player> playerList = socket.MatchTeam["team_1"];
+
+            for (int i = 0; i < playerList.Count; i++)
             {
-                Player player = socket.PlayerList[i];
-                playerTextMesh[i].text = player.name;
+                Player player = playerList[i];
+                playerTextMesh[i].text = player.display_name;
             }
         }
         else
