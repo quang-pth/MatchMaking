@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class RoomManager : MonoBehaviour
 {
@@ -34,5 +35,11 @@ public class RoomManager : MonoBehaviour
         {
             Debug.Log("No socket instance found!");
         }
+    }
+
+    public void UnloadRoomScene()
+    {
+        SceneManager.UnloadSceneAsync("RoomScene");
+        SceneManager.LoadScene("MainScene");
     }
 }

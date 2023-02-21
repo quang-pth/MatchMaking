@@ -46,7 +46,7 @@ io.on('connection', socket => {
     socket.emit("first event", {date: new Date().getTime(), data: data});
   })
 
-  socket.on('find_match', (data) => {
+  socket.on('find', (data) => {
     console.log('find match - user data: ', data);
     setTimeout(() => {
       socket.emit('found_match',
@@ -54,7 +54,7 @@ io.on('connection', socket => {
           players: 
           [
             {
-            id: randomUUID(),
+            userid: randomUUID(),
             name: 'Yasuo',
             },
             {

@@ -8,7 +8,6 @@ using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using Newtonsoft.Json.Linq;
 using Newtonsoft.Json;
-using System.Linq;
 
 public class Player
 {
@@ -23,11 +22,12 @@ public class SocketManager : MonoBehaviour
     public SocketIOUnity socket;
 
     [Tooltip("The server URL for ScoketIO to make request")]
-    public string serverURL;
+    public string DefaultServerURL;
 
     public Canvas mainCanvas;
+    public InputField ServerURL;
     public InputField DataTxt;
-    public Text ReceivedText;  
+    public Text ReceivedText;
 
     private Dictionary<string, List<Player>> matchTeam = new Dictionary<string, List<Player>>();
     public Dictionary<string, List<Player>> MatchTeam
@@ -35,59 +35,14 @@ public class SocketManager : MonoBehaviour
         get { return matchTeam; }
     }
 
-
-    void Start()
+    private void Start()
     {
-        Uri uri = new Uri(serverURL);
-        socket = new SocketIOUnity(uri, new SocketIOOptions
-        {
-            Query = new Dictionary<string, string>
-                {
-                    {"token", "UNITY" }
-                }
-            ,
-            EIO = 4
-            ,
-            Transport = SocketIOClient.Transport.TransportProtocol.WebSocket
-        });
-        socket.JsonSerializer = new NewtonsoftJsonSerializer();
-
-        socket.OnConnected += (sender, e) =>
-        {
-            Debug.Log("socket.OnConnected");
-        };
-        socket.OnPing += (sender, e) =>
-        {
-            Debug.Log("Ping");
-        };
-        socket.OnPong += (sender, e) =>
-        {
-            Debug.Log("Pong: " + e.TotalMilliseconds);
-        };
-        socket.OnDisconnected += (sender, e) =>
-        {
-            Debug.Log("disconnect: " + e);
-        };
-        socket.OnReconnectAttempt += (sender, e) =>
-        {
-            Debug.Log($"{DateTime.Now} Reconnecting: attempt = {e}");
-        };
-
-        Debug.Log("Connecting...");
-        socket.Connect();
-
-        // On response match found event
-        socket.OnUnityThread("found_match", (data) =>
-        {
-            StartCoroutine(StartMatch(data));
-        });
-
-        ReceivedText.text = "";
+        InitSocket();
     }
 
     private void OnDestroy()
     {
-        socket.Disconnect();
+        CloseSocket();
     }
 
     private IEnumerator StartMatch(SocketIOResponse data)
@@ -116,10 +71,100 @@ public class SocketManager : MonoBehaviour
         mainCanvas.gameObject.SetActive(false);
     }
 
+    private bool InitSocket()
+    {
+        string serverURL = ServerURL.text != "" ? ServerURL.text : DefaultServerURL;
+
+        if (serverURL == "") return false;
+
+        try
+        {
+            Uri uri = new Uri(ServerURL.text);
+            socket = new SocketIOUnity(uri, new SocketIOOptions
+            {
+                Query = new Dictionary<string, string>
+                {
+                    {"token", "UNITY" }
+                }
+                ,
+                EIO = 4
+                ,
+                Transport = SocketIOClient.Transport.TransportProtocol.WebSocket
+            });
+            socket.JsonSerializer = new NewtonsoftJsonSerializer();
+
+            socket.OnConnected += (sender, e) =>
+            {
+                Debug.Log("socket.OnConnected");
+            };
+            socket.OnPing += (sender, e) =>
+            {
+                Debug.Log("Ping");
+            };
+            socket.OnPong += (sender, e) =>
+            {
+                Debug.Log("Pong: " + e.TotalMilliseconds);
+            };
+            socket.OnDisconnected += (sender, e) =>
+            {
+                Debug.Log("disconnect: " + e);
+            };
+            socket.OnReconnectAttempt += (sender, e) =>
+            {
+                Debug.Log($"{DateTime.Now} Reconnecting: attempt = {e}");
+            };
+
+            Debug.Log("Connecting...");
+            socket.Connect();
+
+            // On response match found event
+            socket.OnUnityThread("found_match", (data) =>
+            {
+                StartCoroutine(StartMatch(data));
+            });
+        }
+        catch (Exception exception)
+        {
+            Debug.Log(exception.Message);
+            return false;
+        }
+
+        ReceivedText.text = "";
+
+        return true;
+    }
+
+    private void CloseSocket()
+    {
+        socket?.Disconnect();
+    }
+
     public void FindMatch()
     {
+        CloseSocket();
+
+        ReceivedText.text = "Connecting to Server...";
+        bool success = InitSocket();
+
+        if (!success)
+        {
+            ReceivedText.text = "Failed to connect to Server, make sure you type the correct URL";
+            return;
+        }
+
+        StartCoroutine(EmitFindMatch());
+    }
+
+    private IEnumerator EmitFindMatch()
+    {
+        yield return new WaitForSeconds(3.0f);
+
         string eventName = "find";
         string txt = "{\"user_id\": \"" + DataTxt.text + "\"}";
+
+
+        ReceivedText.text = "Connected to Server Successfully";
+        yield return new WaitForSeconds(1.5f);
 
         if (!IsJSON(txt))
         {
